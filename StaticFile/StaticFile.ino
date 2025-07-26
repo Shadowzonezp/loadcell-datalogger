@@ -20,71 +20,37 @@
 #include <WiFiManager.h> // https://github.com/tzapu/WiFiManager
 #include <ESPAsyncWebServer.h>
 #include <LittleFS.h>
-
+#include "FS.h"
+#include "SD.h"
+#include "SPI.h"
 
 static AsyncWebServer server(80);
 
-static const char *htmlContent PROGMEM = R"(
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Sample HTML</title>
-</head>
-<body>
-    <h1>Hello, World!</h1>
-    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Proin euismod, purus a euismod
-    rhoncus, urna ipsum cursus massa, eu dictum tellus justo ac justo. Quisque ullamcorper
-    arcu nec tortor ullamcorper, vel fermentum justo fermentum. Vivamus sed velit ut elit
-    accumsan congue ut ut enim. Ut eu justo eu lacus varius gravida ut a tellus. Nulla facilisi.
-    Integer auctor consectetur ultricies. Fusce feugiat, mi sit amet bibendum viverra, orci leo
-    dapibus elit, id varius sem dui id lacus.</p>
-    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Proin euismod, purus a euismod
-    rhoncus, urna ipsum cursus massa, eu dictum tellus justo ac justo. Quisque ullamcorper
-    arcu nec tortor ullamcorper, vel fermentum justo fermentum. Vivamus sed velit ut elit
-    accumsan congue ut ut enim. Ut eu justo eu lacus varius gravida ut a tellus. Nulla facilisi.
-    Integer auctor consectetur ultricies. Fusce feugiat, mi sit amet bibendum viverra, orci leo
-    dapibus elit, id varius sem dui id lacus.</p>
-    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Proin euismod, purus a euismod
-    rhoncus, urna ipsum cursus massa, eu dictum tellus justo ac justo. Quisque ullamcorper
-    arcu nec tortor ullamcorper, vel fermentum justo fermentum. Vivamus sed velit ut elit
-    accumsan congue ut ut enim. Ut eu justo eu lacus varius gravida ut a tellus. Nulla facilisi.
-    Integer auctor consectetur ultricies. Fusce feugiat, mi sit amet bibendum viverra, orci leo
-    dapibus elit, id varius sem dui id lacus.</p>
-    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Proin euismod, purus a euismod
-    rhoncus, urna ipsum cursus massa, eu dictum tellus justo ac justo. Quisque ullamcorper
-    arcu nec tortor ullamcorper, vel fermentum justo fermentum. Vivamus sed velit ut elit
-    accumsan congue ut ut enim. Ut eu justo eu lacus varius gravida ut a tellus. Nulla facilisi.
-    Integer auctor consectetur ultricies. Fusce feugiat, mi sit amet bibendum viverra, orci leo
-    dapibus elit, id varius sem dui id lacus.</p>
-    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Proin euismod, purus a euismod
-    rhoncus, urna ipsum cursus massa, eu dictum tellus justo ac justo. Quisque ullamcorper
-    arcu nec tortor ullamcorper, vel fermentum justo fermentum. Vivamus sed velit ut elit
-    accumsan congue ut ut enim. Ut eu justo eu lacus varius gravida ut a tellus. Nulla facilisi.
-    Integer auctor consectetur ultricies. Fusce feugiat, mi sit amet bibendum viverra, orci leo
-    dapibus elit, id varius sem dui id lacus.</p>
-    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Proin euismod, purus a euismod
-    rhoncus, urna ipsum cursus massa, eu dictum tellus justo ac justo. Quisque ullamcorper
-    arcu nec tortor ullamcorper, vel fermentum justo fermentum. Vivamus sed velit ut elit
-    accumsan congue ut ut enim. Ut eu justo eu lacus varius gravida ut a tellus. Nulla facilisi.
-    Integer auctor consectetur ultricies. Fusce feugiat, mi sit amet bibendum viverra, orci leo
-    dapibus elit, id varius sem dui id lacus.</p>
-    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Proin euismod, purus a euismod
-    rhoncus, urna ipsum cursus massa, eu dictum tellus justo ac justo. Quisque ullamcorper
-    arcu nec tortor ullamcorper, vel fermentum justo fermentum. Vivamus sed velit ut elit
-    accumsan congue ut ut enim. Ut eu justo eu lacus varius gravida ut a tellus. Nulla facilisi.
-    Integer auctor consectetur ultricies. Fusce feugiat, mi sit amet bibendum viverra, orci leo
-    dapibus elit, id varius sem dui id lacus.</p>
-    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Proin euismod, purus a euismod
-    rhoncus, urna ipsum cursus massa, eu dictum tellus justo ac justo. Quisque ullamcorper
-    arcu nec tortor ullamcorper, vel fermentum justo fermentum. Vivamus sed velit ut elit
-    accumsan congue ut ut enim. Ut eu justo eu lacus varius gravida ut a tellus. Nulla facilisi.
-    Integer auctor consectetur ultricies. Fusce feugiat, mi sit amet bibendum viverra, orci leo
-    dapibus elit, id varius sem dui id lacus.</p>
-</body>
-</html>
-)";
+void initSDCard(){
+  if(!SD.begin()){
+    Serial.println("Card Mount Failed");
+    return;
+  }
+  uint8_t cardType = SD.cardType();
 
-static const size_t htmlContentLength = strlen_P(htmlContent);
+  if(cardType == CARD_NONE){
+    Serial.println("No SD card attached");
+    return;
+  }
+
+  Serial.print("SD Card Type: ");
+  if(cardType == CARD_MMC){
+    Serial.println("MMC");
+  } else if(cardType == CARD_SD){
+    Serial.println("SDSC");
+  } else if(cardType == CARD_SDHC){
+    Serial.println("SDHC");
+  } else {
+    Serial.println("UNKNOWN");
+  }
+  uint64_t cardSize = SD.cardSize() / (1024 * 1024);
+  Serial.printf("SD Card Size: %lluMB\n", cardSize);
+}
 
 void setup() {
   Serial.begin(115200);
@@ -93,6 +59,7 @@ void setup() {
 
   // put your setup code here, to run once:
   Serial.begin(115200);
+  initSDcard();
     
   //WiFiManager, Local intialization. Once its business is done, there is no need to keep it around
   WiFiManager wm;
@@ -124,48 +91,13 @@ void setup() {
   //WiFi.softAP("esp-captive");
 //#endif
 
-#ifdef ESP32
-  LittleFS.begin(true);
-#else
-  LittleFS.begin();
-#endif
-
-  {
-    File f = LittleFS.open("/index.html", "w");
-    assert(f);
-    f.print(htmlContent);
-    f.close();
-  }
-
-  LittleFS.mkdir("/files");
-
-  {
-    File f = LittleFS.open("/files/a.txt", "w");
-    assert(f);
-    f.print("Hello from a.txt");
-    f.close();
-  }
-
-  {
-    File f = LittleFS.open("/files/b.txt", "w");
-    assert(f);
-    f.print("Hello from b.txt");
-    f.close();
-  }
-
   // curl -v http://192.168.4.1/
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->redirect("/index.html");
+    request->send(SD, "/index.html", "text/html");
   });
 
   // curl -v http://192.168.4.1/index.html
-  server.serveStatic("/index.html", LittleFS, "/index.html");
-
-  // Example to serve a directory content
-  // curl -v http://192.168.4.1/base/ => serves a.txt
-  // curl -v http://192.168.4.1/base/a.txt => serves a.txt
-  // curl -v http://192.168.4.1/base/b.txt => serves b.txt
-  server.serveStatic("/base", LittleFS, "/files").setDefaultFile("a.txt");
+  server.serveStatic("/", SD, "/");
 
   server.begin();
 }
