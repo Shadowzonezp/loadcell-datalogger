@@ -19,37 +19,82 @@
 
 #include <WiFiManager.h> // https://github.com/tzapu/WiFiManager
 #include <ESPAsyncWebServer.h>
-#include <LittleFS.h>
+//#include <LittleFS.h>
 #include "FS.h"
 #include "SD.h"
 #include "SPI.h"
 
+/*
+Uncomment and set up if you want to use custom pins for the SPI communication
+*/
+#define REASSIGN_PINS
+int sck = 15;
+int miso = 32;
+int mosi = 33;
+int cs = -1;
+
 static AsyncWebServer server(80);
 
 void initSDCard(){
-  if(!SD.begin()){
+#ifdef REASSIGN_PINS
+  SPI.begin(sck, miso, mosi, cs);
+  if (!SD.begin(cs)) {
+#else
+  if (!SD.begin()) {
+#endif
     Serial.println("Card Mount Failed");
     return;
   }
   uint8_t cardType = SD.cardType();
 
-  if(cardType == CARD_NONE){
-    Serial.println("No SD card attached");
+  if (cardType == CARD_NONE) {
+    Serial.println("ERROR: No SD card attached");
     return;
   }
 
   Serial.print("SD Card Type: ");
-  if(cardType == CARD_MMC){
+  if (cardType == CARD_MMC) {
     Serial.println("MMC");
-  } else if(cardType == CARD_SD){
+  } else if (cardType == CARD_SD) {
     Serial.println("SDSC");
-  } else if(cardType == CARD_SDHC){
+  } else if (cardType == CARD_SDHC) {
     Serial.println("SDHC");
   } else {
     Serial.println("UNKNOWN");
   }
   uint64_t cardSize = SD.cardSize() / (1024 * 1024);
   Serial.printf("SD Card Size: %lluMB\n", cardSize);
+}
+
+void listDir(fs::FS &fs, const char *dirname, uint8_t levels) {
+  Serial.printf("Listing directory: %s\n", dirname);
+
+  File root = fs.open(dirname);
+  if (!root) {
+    Serial.println("Failed to open directory");
+    return;
+  }
+  if (!root.isDirectory()) {
+    Serial.println("Not a directory");
+    return;
+  }
+
+  File file = root.openNextFile();
+  while (file) {
+    if (file.isDirectory()) {
+      Serial.print("  DIR : ");
+      Serial.println(file.name());
+      if (levels) {
+        listDir(fs, file.path(), levels - 1);
+      }
+    } else {
+      Serial.print("  FILE: ");
+      Serial.print(file.name());
+      Serial.print("  SIZE: ");
+      Serial.println(file.size());
+    }
+    file = root.openNextFile();
+  }
 }
 
 void setup() {
@@ -59,7 +104,8 @@ void setup() {
 
   // put your setup code here, to run once:
   Serial.begin(115200);
-  initSDcard();
+  initSDCard();
+  listDir(SD, "/", 0);
     
   //WiFiManager, Local intialization. Once its business is done, there is no need to keep it around
   WiFiManager wm;
@@ -88,14 +134,13 @@ void setup() {
   }
 //#if SOC_WIFI_SUPPORTED || CONFIG_ESP_WIFI_REMOTE_ENABLED || LT_ARD_HAS_WIFI
   //WiFi.mode(WIFI_AP);
-  //WiFi.softAP("esp-captive");
+  //WiFi.softAP("esp_captive");
 //#endif
 
   // curl -v http://192.168.4.1/
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(SD, "/index.html", "text/html");
+    request->redirect("/index.html");
   });
-
   // curl -v http://192.168.4.1/index.html
   server.serveStatic("/", SD, "/");
 
