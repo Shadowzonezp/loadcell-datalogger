@@ -101,9 +101,21 @@ void tare(AsyncWebServerRequest *request){
   // display params
   size_t count = request->params();
   for (size_t i = 0; i < count; i++) {
-    const AsyncWebParameter *p = request->getParam(i);
+    AsyncWebParameter* p = request->getParam(i);
     Serial.printf("PARAM[%u]: %s = %s\n", i, p->name().c_str(), p->value().c_str());
   }
+  request->send(200, "text/html", "ok" );
+}
+
+void calibrate(AsyncWebServerRequest *request){
+  Serial.println("called calibrate");
+  // display params
+  size_t count = request->params();
+  if (request->hasParam("mass")){
+    AsyncWebParameter* p = request->getParam("mass");
+    Serial.println(p->value().c_str());
+  }
+  request->send(200, "text/html", "ok" );
 }
 
 void setup() {
@@ -170,6 +182,7 @@ void setup() {
   server.serveStatic("/", SD, "/");
 
   server.on("/tare", HTTP_POST, tare);
+  server.on("/calibrate", HTTP_POST, calibrate);
 
   server.begin();
   timeClient.begin();
