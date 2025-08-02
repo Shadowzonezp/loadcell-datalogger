@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Loadcell Calibration</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            text-align: center;
+        }
+        .button {
+            background-color: orange;
+            color: white;
+            border: none;
+            padding: 15px 32px;
+            margin: 20px 0;
+            font-size: 18px;
+            cursor: pointer;
+            border-radius: 6px;
+        }
+        .hidden {
+            display: none;
+        }
+        input[type="number"] {
+            padding: 10px;
+            font-size: 16px;
+            width: 120px;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="step1">
+        <p>Please remove any weight from the loadcell and click the tare button</p>
+        <button class="button" id="tareBtn">Tare</button>
+    </div>
+    <div id="step2" class="hidden">
+        <p>Place a known mass on the loadcell and introduce the weight in grams.</p>
+        <input type="number" id="massInput" placeholder="Weight (g)" min="1" required>
+        <button class="button" id="calibrateBtn" style="background-color: #28a745;">Calibrate</button>
+    </div>
+
+    <script>
+        const tareBtn = document.getElementById('tareBtn');
+        const calibrateBtn = document.getElementById('calibrateBtn');
+        const step1 = document.getElementById('step1');
+        const step2 = document.getElementById('step2');
+        const massInput = document.getElementById('massInput');
+
+        tareBtn.onclick = async () => {
+            await fetch('/tare', { method: 'POST' });
+            step1.classList.add('hidden');
+            step2.classList.remove('hidden');
+        };
+
+        calibrateBtn.onclick = async () => {
+            const mass = massInput.value;
+            if (!mass) {
+                massInput.focus();
+                return;
+            }
+            await fetch('/calibrate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mass: Number(mass) })
+            });
+            calibrateBtn.disabled = true;
+            calibrateBtn.textContent = "Calibrated!";
+        };
+    </script>

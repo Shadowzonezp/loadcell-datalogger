@@ -17,7 +17,9 @@
 #include "SPI.h"
 #include <NTPClient.h>
 #include <WiFiUdp.h>
+#include <Preferences.h>
 
+Preferences preferences;
 /*
 Uncomment and set up if you want to use custom pins for the SPI communication
 */
@@ -140,7 +142,7 @@ void setup() {
       delay(1000);
     }
   }
-  
+
   Serial.println("mDNS responder started");
 
   MDNS.addService("http", "tcp", 80);
@@ -159,6 +161,12 @@ void setup() {
 
   server.begin();
   timeClient.begin();
+
+  preferences.begin("datalogger", false);
+  unsigned int calvalue = preferences.getUInt("calvalue", 0);
+  serial.println("current calibration value:")
+  Serial.println(calvalue);
+
 }
 
 // not needed
