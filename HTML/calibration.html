@@ -8,16 +8,25 @@
             font-family: Arial, sans-serif;
             margin: 40px;
             text-align: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f4f4f4;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            padding: 20px;
         }
         .button {
             background-color: orange;
             color: white;
             border: none;
-            padding: 15px 32px;
-            margin: 20px 0;
-            font-size: 18px;
+            padding: 15px 30px;
+            font-size: 1em;
+            border-radius: 25px;
             cursor: pointer;
-            border-radius: 6px;
+            transition: background-color 0.3s ease;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
         }
         .hidden {
             display: none;
@@ -31,11 +40,11 @@
     </style>
 </head>
 <body>
-    <div id="step1">
+    <div id="step1" style="font-size: 1.8em; color: #333;">
         <p>Please remove any weight from the loadcell and click the tare button</p>
         <button class="button" id="tareBtn">Tare</button>
     </div>
-    <div id="step2" class="hidden">
+    <div id="step2" class="hidden" style="font-size: 1.8em; color: #333;">
         <p>Place a known mass on the loadcell and introduce the weight in grams.</p>
         <input type="number" id="massInput" placeholder="Weight (g)" min="1" required>
         <button class="button" id="calibrateBtn" style="background-color: #28a745;">Calibrate</button>
@@ -60,12 +69,9 @@
                 massInput.focus();
                 return;
             }
-            await fetch('/calibrate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ mass: Number(mass) })
-            });
-            calibrateBtn.disabled = true;
-            calibrateBtn.textContent = "Calibrated!";
+            // Submit as GET to /calibrate?mass=...
+            window.location.href = `/calibrate?mass=${encodeURIComponent(mass)}`;
         };
     </script>
+</body>
+</html>

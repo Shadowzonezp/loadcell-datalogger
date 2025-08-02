@@ -52,17 +52,42 @@
     #recordButton:active {
       transform: scale(0.98);
     }
+
+    #calibrationButton {
+      margin-top: 20px;
+      background-color: orange;
+      color: white;
+      border: none;
+      padding: 12px 28px;
+      font-size: 1em;
+      border-radius: 25px;
+      cursor: pointer;
+    }
+
+    #calibrationButton:hover {
+      background-color: darkorange;
+    }
+
+    #calibrationButton:active {
+      transform: scale(0.98);
+    }
   </style>
 </head>
 <body>
   <h1 style="margin-bottom: 20px; font-size: 1.8em; color: #333;">Datalogger</h1>
   <div id="timer">00:00:00.000</div>
   <button id="recordButton">Start</button>
+  <button id="calibrationButton" style="margin-top:20px; background-color: orange; color: white; border: none; padding: 12px 28px; font-size: 1em; border-radius: 25px; cursor: pointer;">Calibration</button>
 
   <script>
     const timer = document.getElementById('timer');
     const button = document.getElementById('recordButton');
+    const calibrationButton = document.getElementById('calibrationButton');
     let startTime, interval;
+
+    calibrationButton.onclick = () => {
+      window.location.href = '/calibration.html';
+    };
 
     function formatTime(ms) {
       let totalSeconds = Math.floor(ms / 1000);
