@@ -159,12 +159,21 @@ void setup() {
   // curl -v http://192.168.4.1/index.html
   server.serveStatic("/", SD, "/");
 
+  server.on("/tare", HTTP_POST, [](AsyncWebServerRequest *request) {
+    // display params
+    size_t count = request->params();
+    for (size_t i = 0; i < count; i++) {
+      const AsyncWebParameter *p = request->getParam(i);
+      Serial.printf("PARAM[%u]: %s = %s\n", i, p->name().c_str(), p->value().c_str());
+    }
+  });
+
   server.begin();
   timeClient.begin();
 
   preferences.begin("datalogger", false);
   unsigned int calvalue = preferences.getUInt("calvalue", 0);
-  serial.println("current calibration value:")
+  Serial.println("current calibration value:");
   Serial.println(calvalue);
 
 }
