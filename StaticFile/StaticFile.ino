@@ -6,23 +6,16 @@
 //
 
 #include <Arduino.h>
-#if defined(ESP32) || defined(LIBRETINY)
 #include <AsyncTCP.h>
 #include <WiFi.h>
-#elif defined(ESP8266)
-#include <ESP8266WiFi.h>
-#include <ESPAsyncTCP.h>
-#elif defined(TARGET_RP2040) || defined(TARGET_RP2350) || defined(PICO_RP2040) || defined(PICO_RP2350)
-#include <RPAsyncTCP.h>
-#include <WiFi.h>
-#endif
-
 #include <WiFiManager.h> // https://github.com/tzapu/WiFiManager
 #include <ESPAsyncWebServer.h>
 //#include <LittleFS.h>
 #include "FS.h"
 #include "SD.h"
 #include "SPI.h"
+#include <NTPClient.h>
+#include <WiFiUdp.h>
 
 /*
 Uncomment and set up if you want to use custom pins for the SPI communication
@@ -34,6 +27,9 @@ int mosi = 33;
 int cs = -1;
 
 static AsyncWebServer server(80);
+
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP, "2.europe.pool.ntp.org",3600*2); // 3600*2 is for timezone GMT+2
 
 void initSDCard(){
 #ifdef REASSIGN_PINS
@@ -145,9 +141,14 @@ void setup() {
   server.serveStatic("/", SD, "/");
 
   server.begin();
+  timeClient.begin();
 }
 
 // not needed
 void loop() {
-  delay(100);
+  timeClient.update();
+
+  //Serial.println(timeClient.getFormattedTime());
+
+  delay(1000);
 }
