@@ -96,6 +96,16 @@ void listDir(fs::FS &fs, const char *dirname, uint8_t levels) {
   }
 }
 
+void tare(AsyncWebServerRequest *request){
+  Serial.println("called tare");
+  // display params
+  size_t count = request->params();
+  for (size_t i = 0; i < count; i++) {
+    const AsyncWebParameter *p = request->getParam(i);
+    Serial.printf("PARAM[%u]: %s = %s\n", i, p->name().c_str(), p->value().c_str());
+  }
+}
+
 void setup() {
   Serial.begin(115200);
 // WiFi.mode(WIFI_STA); // explicitly set mode, esp defaults to STA+AP
@@ -159,14 +169,7 @@ void setup() {
   // curl -v http://192.168.4.1/index.html
   server.serveStatic("/", SD, "/");
 
-  server.on("/tare", HTTP_POST, [](AsyncWebServerRequest *request) {
-    // display params
-    size_t count = request->params();
-    for (size_t i = 0; i < count; i++) {
-      const AsyncWebParameter *p = request->getParam(i);
-      Serial.printf("PARAM[%u]: %s = %s\n", i, p->name().c_str(), p->value().c_str());
-    }
-  });
+  server.on("/tare", HTTP_POST, tare);
 
   server.begin();
   timeClient.begin();
