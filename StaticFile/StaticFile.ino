@@ -10,6 +10,7 @@
 #include <WiFi.h>
 #include <WiFiManager.h> // https://github.com/tzapu/WiFiManager
 #include <ESPAsyncWebServer.h>
+#include <ESPmDNS.h>
 //#include <LittleFS.h>
 #include "FS.h"
 #include "SD.h"
@@ -128,6 +129,22 @@ void setup() {
       //if you get here you have connected to the WiFi    
       Serial.println("connected...yeey :)");
   }
+  // Set up mDNS responder:
+  // - first argument is the domain name, in this example
+  //   the fully-qualified domain name is "esp32.local"
+  // - second argument is the IP address to advertise
+  //   we send our IP address on the WiFi network
+  if (!MDNS.begin("esp32dl")) {
+    Serial.println("Error setting up MDNS responder!");
+    while (1) {
+      delay(1000);
+    }
+  }
+  
+  Serial.println("mDNS responder started");
+
+  MDNS.addService("http", "tcp", 80);
+
 //#if SOC_WIFI_SUPPORTED || CONFIG_ESP_WIFI_REMOTE_ENABLED || LT_ARD_HAS_WIFI
   //WiFi.mode(WIFI_AP);
   //WiFi.softAP("esp_captive");

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Datalogger</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f4f4f4;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      padding: 20px;
+    }
+
+    #timer {
+      font-size: 2.5em;
+      font-weight: bold;
+      background: #2c3e50;
+      color: #ecf0f1;
+      padding: 20px 30px;
+      border-radius: 10px;
+      margin-bottom: 30px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    #recordButton {
+      background-color: #e74c3c;
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      font-size: 1em;
+      border-radius: 25px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    }
+
+    #recordButton:hover {
+      background-color: #c0392b;
+    }
+
+    #recordButton:active {
+      transform: scale(0.98);
+    }
+  </style>
+</head>
+<body>
+  <h1 style="margin-bottom: 20px; font-size: 1.8em; color: #333;">Datalogger</h1>
+  <div id="timer">00:00:00.000</div>
+  <button id="recordButton">Start</button>
+
+  <script>
+    const timer = document.getElementById('timer');
+    const button = document.getElementById('recordButton');
+    let startTime, interval;
+
+    function formatTime(ms) {
+      let totalSeconds = Math.floor(ms / 1000);
+      let hours = Math.floor(totalSeconds / 3600);
+      let minutes = Math.floor((totalSeconds % 3600) / 60);
+      let seconds = totalSeconds % 60;
+      let milliseconds = Math.floor(ms % 1000);
+      return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}.${pad(milliseconds, 3)}`;
+    }
+
+    function pad(num, size = 2) {
+      return num.toString().padStart(size, '0');
+    }
+
+    button.addEventListener('click', () => {
+    if (!startTime) {
+        startTime = Date.now();                    // Start the timer
+        interval = setInterval(() => {
+        timer.textContent = formatTime(Date.now() - startTime);
+    }, 10);
+        fetch('/start', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json' // Optional, if server expects JSON
+      }
+    });
+    button.textContent = 'Stop';
+    } else {
+        clearInterval(interval);
+        button.textContent = 'Start';
+        startTime = null;                          // ✅ Reset startTime to allow restart
+        // === STOP LOGIC ===
+    // Send POST request to the '/stop' endpoint
+    fetch('/stop', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json' // Optional, if server expects JSON
+      }
+    });
+    }
+    });
+  </script>
+</body>
+</html>
