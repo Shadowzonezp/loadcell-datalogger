@@ -18,6 +18,14 @@
 #include <NTPClient.h>
 #include <WiFiUdp.h>
 #include <Preferences.h>
+#include <HX711_ADC.h>
+
+//pins:
+const int HX711_dout = 17; //mcu > HX711 dout pin
+const int HX711_sck = 16; //mcu > HX711 sck pin
+
+//HX711 constructor:
+HX711_ADC LoadCell(HX711_dout, HX711_sck);
 
 Preferences preferences;
 /*
@@ -99,10 +107,29 @@ void listDir(fs::FS &fs, const char *dirname, uint8_t levels) {
 void tare(AsyncWebServerRequest *request){
   Serial.println("called tare");
   // display params
+  LoadCell.update();
+  LoadCell.tareNoDelay();
+  boolean _resume = false;
+  while (_resume == false) {
+    LoadCell.update();
+    if (LoadCell.getTareStatus() == true) {
+      Serial.println("Tare complete");
+      _resume = true;
+    }
+  }
+  request->send(200, "text/html", "ok" );
+}
+
+void hometare(AsyncWebServerRequest *request){
+  Serial.println("called hometare");
+  unsigned long stabilizingtime = 2000; // preciscion right after power-up can be improved by adding a few seconds of stabilizing time
+  boolean _tare = true; //set this to false if you don't want tare to be performed in the next step
+  LoadCell.start(stabilizingtime, _tare);
   request->send(200, "text/html", "ok" );
 }
 
 void calibrate(AsyncWebServerRequest *request){
+  float known_mass = 0;
   Serial.println("called calibrate");
   size_t count = request->params();
   for (size_t i = 0; i < count; i++) {
@@ -111,10 +138,14 @@ void calibrate(AsyncWebServerRequest *request){
   }
   const AsyncWebParameter* param = request->getParam("mass");
   if (param != nullptr){
-    preferences.putUInt("calvalue", param->value().toInt());
+    //preferences.putUInt("calvalue", param->value().toInt());
+    known_mass = param->value().toFloat();
+    Serial.println(known_mass);
   }
-
-  
+  LoadCell.refreshDataSet(); //refresh the dataset to be sure that the known mass is measured correct
+  float newCalibrationValue = LoadCell.getNewCalibration(known_mass); //get the new calibration value
+  Serial.println(newCalibrationValue);
+  preferences.putFloat("calvalue", newCalibrationValue);
   request->redirect( "/index.html" );
 }
 
@@ -182,15 +213,31 @@ void setup() {
   server.serveStatic("/", SD, "/");
 
   server.on("/tare", HTTP_POST, tare);
+  server.on("/hometare", HTTP_POST, hometare);
   server.on("/calibrate", HTTP_GET, calibrate);
 
   server.begin();
   timeClient.begin();
 
   preferences.begin("datalogger", false);
-  unsigned int calvalue = preferences.getUInt("calvalue", 0);
+  float calvalue = preferences.getFloat("calvalue", 0);
   Serial.println("current calibration value:");
   Serial.println(calvalue);
+
+  LoadCell.begin();
+  //LoadCell.setReverseOutput(); //uncomment to turn a negative output value to positive
+  unsigned long stabilizingtime = 2000; // preciscion right after power-up can be improved by adding a few seconds of stabilizing time
+  boolean _tare = true; //set this to false if you don't want tare to be performed in the next step
+  LoadCell.start(stabilizingtime, _tare);
+  if (LoadCell.getTareTimeoutFlag() || LoadCell.getSignalTimeoutFlag()) {
+    Serial.println("Timeout, check MCU>HX711 wiring and pin designations");
+    while (1);
+  }
+  else {
+    LoadCell.setCalFactor(calvalue); // user set calibration value (float), initial value 1.0 may be used for this sketch
+    Serial.println("Startup is complete");
+  }
+  while (!LoadCell.update());
 
 }
 
