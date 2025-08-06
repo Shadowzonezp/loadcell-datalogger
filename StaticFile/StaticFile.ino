@@ -37,6 +37,13 @@ int miso = 32;
 int mosi = 33;
 int cs = -1;
 
+int endmillis = 0;
+int startmillis = 0;
+
+bool loggingActive = false;
+
+unsigned long t = 0;
+
 static AsyncWebServer server(80);
 
 WiFiUDP ntpUDP;
@@ -149,11 +156,27 @@ void calibrate(AsyncWebServerRequest *request){
   request->redirect( "/index.html" );
 }
 
+void start(AsyncWebServerRequest *request) {
+  loggingActive = true;
+  startmillis = millis();
+  Serial.println("Logging started");
+  request->send(200, "text/html", "ok");
+}
+
+void stop(AsyncWebServerRequest *request) {
+  loggingActive = false;
+  endmillis = millis();
+  Serial.println("Logging stopped");
+  int milliselapsed = endmillis - startmillis;
+  Serial.println("Duration in millis:");
+  Serial.println(milliselapsed);
+  request->send(200, "text/html", "ok");
+}
+
 void setup() {
   Serial.begin(115200);
 // WiFi.mode(WIFI_STA); // explicitly set mode, esp defaults to STA+AP
   // it is a good practice to make sure your code sets wifi mode how you want it.
-
   // put your setup code here, to run once:
   Serial.begin(115200);
   initSDCard();
@@ -212,19 +235,12 @@ void setup() {
   // curl -v http://192.168.4.1/index.html
   server.serveStatic("/", SD, "/");
 
-  server.on("/tare", HTTP_POST, tare);
-  server.on("/hometare", HTTP_POST, hometare);
-  server.on("/calibrate", HTTP_GET, calibrate);
-
-  server.begin();
-  timeClient.begin();
-
   preferences.begin("datalogger", false);
   float calvalue = preferences.getFloat("calvalue", 0);
   Serial.println("current calibration value:");
   Serial.println(calvalue);
-
   LoadCell.begin();
+  
   //LoadCell.setReverseOutput(); //uncomment to turn a negative output value to positive
   unsigned long stabilizingtime = 2000; // preciscion right after power-up can be improved by adding a few seconds of stabilizing time
   boolean _tare = true; //set this to false if you don't want tare to be performed in the next step
@@ -239,13 +255,37 @@ void setup() {
   }
   while (!LoadCell.update());
 
+  server.on("/tare", HTTP_POST, tare);
+  server.on("/hometare", HTTP_POST, hometare);
+  server.on("/calibrate", HTTP_GET, calibrate);
+  server.on("/start", HTTP_POST, start);
+  server.on("/stop", HTTP_POST, stop);
+
+  server.begin();
+  timeClient.begin();
 }
 
 // not needed
 void loop() {
   timeClient.update();
 
-  //Serial.println(timeClient.getFormattedTime());
+  // Only read/loadcell and print if logging is active
+  static boolean newDataReady = 0;
+  const int serialPrintInterval = 0;
+  static unsigned long t = 0;
 
-  delay(1000);
+  if (loggingActive) {
+    if (LoadCell.update()) newDataReady = true;
+    if (newDataReady) {
+      if (millis() > t + serialPrintInterval) {
+        float i = LoadCell.getData();
+        Serial.print("Load_cell output val: ");
+        Serial.println(i);
+        newDataReady = 0;
+        t = millis();
+      }
+    }
+  }
+
+  delay(10);
 }
