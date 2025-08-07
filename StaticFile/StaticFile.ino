@@ -163,6 +163,30 @@ void start(AsyncWebServerRequest *request) {
   request->send(200, "text/html", "ok");
 }
 
+// Buffer for storing load cell readings (15KB for ESP32)
+#define BUFFER_SIZE 15000
+struct LoadCellSample {
+    unsigned long timestamp;
+    float value;
+};
+constexpr size_t SAMPLE_SIZE = sizeof(LoadCellSample); // 8 bytes per sample (4+4)
+constexpr size_t MAX_SAMPLES = BUFFER_SIZE / SAMPLE_SIZE;
+LoadCellSample sampleBuffer[MAX_SAMPLES];
+volatile size_t sampleCount = 0;
+
+void printSampleBuffer() {
+    Serial.println("=== Sample Buffer Contents ===");
+    for (size_t i = 0; i < sampleCount; i++) {
+        Serial.print("Sample ");
+        Serial.print(i);
+        Serial.print(": millis=");
+        Serial.print(sampleBuffer[i].timestamp);
+        Serial.print(", value=");
+        Serial.println(sampleBuffer[i].value, 6);
+    }
+    Serial.println("=== End of Buffer ===");
+}
+
 void stop(AsyncWebServerRequest *request) {
   loggingActive = false;
   endmillis = millis();
@@ -170,6 +194,45 @@ void stop(AsyncWebServerRequest *request) {
   int milliselapsed = endmillis - startmillis;
   Serial.println("Duration in millis:");
   Serial.println(milliselapsed);
+
+  // Print buffer contents for debugging
+  printSampleBuffer();
+
+  // ==== Save buffer to SD card ====
+  // Create "recordings" directory if it doesn't exist
+  if (!SD.exists("/recordings")) {
+    SD.mkdir("/recordings");
+  }
+
+  // Use NTP time at start of recording for filename
+  time_t startEpoch = timeClient.getEpochTime() - ((millis() - startmillis) / 1000);
+  struct tm *tmstruct = gmtime(&startEpoch);
+  char timeString[32];
+  strftime(timeString, sizeof(timeString), "%Y%m%d_%H%M%S", tmstruct);
+
+  char filename[64];
+  snprintf(filename, sizeof(filename), "/recordings/rec_%s.csv", timeString);
+
+  File file = SD.open(filename, FILE_WRITE);
+  if (!file) {
+    Serial.println("Failed to open file for writing!");
+  } else {
+    // Write CSV header
+    file.println("timestamp,value");
+    // Write all samples
+    for (size_t i = 0; i < sampleCount; i++) {
+      file.print(sampleBuffer[i].timestamp);
+      file.print(",");
+      file.println(sampleBuffer[i].value, 6);
+    }
+    file.close();
+    Serial.print("Saved buffer to SD: ");
+    Serial.println(filename);
+  }
+
+  // Optionally clear the buffer after saving
+  sampleCount = 0;
+
   request->send(200, "text/html", "ok");
 }
 
@@ -267,25 +330,31 @@ void setup() {
 
 // not needed
 void loop() {
-  timeClient.update();
+    timeClient.update();
 
-  // Only read/loadcell and print if logging is active
-  static boolean newDataReady = 0;
-  const int serialPrintInterval = 0;
-  static unsigned long t = 0;
+    // Only read/loadcell and print if logging is active
+    static boolean newDataReady = 0;
+    const int serialPrintInterval = 0;
+    static unsigned long t = 0;
 
-  if (loggingActive) {
-    if (LoadCell.update()) newDataReady = true;
-    if (newDataReady) {
-      if (millis() > t + serialPrintInterval) {
-        float i = LoadCell.getData();
-        Serial.print("Load_cell output val: ");
-        Serial.println(i);
-        newDataReady = 0;
-        t = millis();
-      }
+    if (loggingActive) {
+        if (LoadCell.update()) newDataReady = true;
+        if (newDataReady) {
+            if (millis() > t + serialPrintInterval) {
+                float i = LoadCell.getData();
+                Serial.print("Load_cell output val: ");
+                Serial.println(i);
+                // Save to buffer if space available
+                if (sampleCount < MAX_SAMPLES) {
+                    sampleBuffer[sampleCount].timestamp = millis();
+                    sampleBuffer[sampleCount].value = i;
+                    sampleCount++;
+                }
+                newDataReady = 0;
+                t = millis();
+            }
+        }
     }
-  }
 
-  delay(10);
+    delay(10);
 }
