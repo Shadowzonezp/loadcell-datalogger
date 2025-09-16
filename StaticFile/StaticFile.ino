@@ -297,6 +297,7 @@ void setup() {
   });
   // curl -v http://192.168.4.1/index.html
   server.serveStatic("/", SD, "/");
+  server.serveStatic("/recordings", SD, "/recordings");
 
   preferences.begin("datalogger", false);
   float calvalue = preferences.getFloat("calvalue", 0);
@@ -323,6 +324,42 @@ void setup() {
   server.on("/calibrate", HTTP_GET, calibrate);
   server.on("/start", HTTP_POST, start);
   server.on("/stop", HTTP_POST, stop);
+
+  // Add this handler to your setup() in StaticFile.ino to serve the file list as JSON
+  server.on("/list", HTTP_GET, [](AsyncWebServerRequest *request){
+    String dir = "/";
+    if (request->hasParam("dir")) dir = request->getParam("dir")->value();
+    File root = SD.open(dir);
+    if (!root || !root.isDirectory()) {
+      request->send(404, "application/json", "[]");
+      return;
+    }
+    String output = "[";
+    File file = root.openNextFile();
+    bool first = true;
+    while (file) {
+      if (!file.isDirectory()) {
+        if (!first) output += ",";
+        String fname = String(file.name());
+        String url = fname;
+        // Ensure the URL is correct for /recordings
+        if (dir.endsWith("/")) {
+          if (!fname.startsWith(dir)) url = dir + fname;
+        } else {
+          if (!fname.startsWith(dir + "/")) url = dir + "/" + fname;
+        }
+        output += "{\"name\":\"";
+        output += fname.substring(fname.lastIndexOf('/') + 1);
+        output += "\",\"url\":\"";
+        output += url;
+        output += "\"}";
+        first = false;
+      }
+      file = root.openNextFile();
+    }
+    output += "]";
+    request->send(200, "application/json", output);
+  });
 
   server.begin();
   timeClient.begin();

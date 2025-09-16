@@ -81,6 +81,35 @@
       border-radius: 25px;
       cursor: pointer;
     }
+
+    #filesSection {
+      margin-top: 40px;
+      width: 100%;
+      max-width: 600px;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    #fileList {
+      list-style: none;
+      padding: 0;
+    }
+
+    #fileList li {
+      margin: 10px 0;
+    }
+
+    #fileList a {
+      text-decoration: none;
+      color: #3498db;
+      transition: color 0.3s ease;
+    }
+
+    #fileList a:hover {
+      color: #2980b9;
+    }
   </style>
 </head>
 <body>
@@ -89,6 +118,12 @@
   <button id="recordButton">Start</button>
   <button id="tareButton">Tare</button>
   <button id="calibrationButton" style="margin-top:20px; background-color: orange; color: white; border: none; padding: 12px 28px; font-size: 1em; border-radius: 25px; cursor: pointer;">Calibration</button>
+
+  <div id="filesSection" style="margin-top: 40px;">
+    <h2 style="font-size:1.2em; color:#333;">Recordings</h2>
+    <button id="refreshFilesButton" style="margin-bottom:10px; background:#3498db; color:white; border:none; padding:8px 18px; border-radius:18px; cursor:pointer;">Refresh List</button>
+    <ul id="fileList" style="list-style:none; padding:0;"></ul>
+  </div>
 
   <script>
     const timer = document.getElementById('timer');
@@ -150,6 +185,27 @@
     });
     }
     });
+
+    // Fetch and display the list of files in /recordings
+    async function loadFileList() {
+    const res = await fetch('/list?dir=/recordings');
+    if (!res.ok) return;
+    const files = await res.json();
+    const fileList = document.getElementById('fileList');
+    fileList.innerHTML = '';
+    files.forEach(file => {
+      const li = document.createElement('li');
+      const a = document.createElement('a');
+      a.href = file.url;
+      a.textContent = file.name;
+      a.download = file.name;
+      li.appendChild(a);
+      fileList.appendChild(li);
+    });
+  }
+  loadFileList();
+
+  document.getElementById('refreshFilesButton').onclick = loadFileList;
   </script>
 </body>
 </html>
