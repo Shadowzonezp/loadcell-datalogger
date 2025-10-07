@@ -79,3 +79,5 @@ Copyright 2025 Ferran Espigares Garcia
 
 **Note:**  
 For best results, use a genuine ESP32, quality SD card, and ensure stable power for the load cell and HX711.
+
+Files for a 3d rocket test stand are included in "3d-stand-files"
